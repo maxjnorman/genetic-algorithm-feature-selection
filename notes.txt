@@ -1,6 +1,7 @@
 Notes 1
 
 stackoverflow.com/multiprocessing1
+https://stackoverflow.com/questions/11536764/how-to-fix-attempted-relative-import-in-non-package-even-with-init-py/27876800#27876800
 
 def chain(*iterables):
   for iterable in iterables:
@@ -41,7 +42,7 @@ class CladeBase:
       tally[argmin(tally)]+=item.size
     return part
   def comp(self,iters):
-    
+
   def champ(self,loser=false):
     stable=list(self.descs)
     while len(stable)>1:
@@ -79,10 +80,10 @@ class CladeBase:
     n=ceil(self.size<self.n_max)
     if n > 1
       n=min([n,n_max])
-      
+
     else:
       return [self]
-      
+
 
 
 
@@ -105,8 +106,8 @@ class Individual(CladeBase):
       self.alive=false
   def branch(self):
     yield from chain([self],self.descs)
-      
-    
+
+
 
 
 
@@ -116,7 +117,7 @@ class Individual(CladeBase):
 class Clade:
   -refactor into Clade(CladeBase)
   descs: list of individuals (descendants)
-    return living only 
+    return living only
   len_max: max len of descs
   n: target size
   gen: generation counter
@@ -128,7 +129,7 @@ class Clade:
     call sum desc.size
   champ(): get one good individual
     get n=2 rand from living descs
-    discard least fit if tie rand 
+    discard least fit if tie rand
     call champ on remaining desc
     return champ
     ALTERNATE:
@@ -138,7 +139,7 @@ class Clade:
       champ = highlander #last remaining
       call champ.champ
       return champ
-    
+
   worst(): get one bad individual
      same as champ but the loser
   kill(): remove an individual
@@ -235,7 +236,7 @@ class Individual(CladeBase)
   worst(): return poor individual
     same as champ but least fit
   individuals(): return [self] + descs
-  branch(): split descendants 
+  branch(): split descendants
     if descs return [self] + descs
     else return None
   size(): return len(descs) + 1
@@ -253,4 +254,3 @@ class Individual(CladeBase)
     out=np.nan(shape=data.size)
     if oob np.put(out,oob[1],oob[0])
     return out
-  

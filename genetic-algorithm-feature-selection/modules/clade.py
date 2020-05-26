@@ -122,9 +122,9 @@ class Individual(CladeBase):
     def clade(self):
         return chain([self], self.descs)
     def kill(self):
-        if len(list(self.descs))>1:
-            sample(self.descs,1).kill()
+        if len(list(self.descs)) > 1:
+            np.random.choice(self.descs, 1).kill()
         else:
-            self.alive=false
+            self._alive = false
     def branch(self):
         yield from chain([self],self.descs)
