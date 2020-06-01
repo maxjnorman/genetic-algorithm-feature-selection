@@ -140,6 +140,15 @@ class CladeBase:
             for i in d.clade:
                 yield i
 
+    def branch(self):
+        pass
+
+    def breed(self):
+        pass
+
+    def collapse(self):
+        pass
+
 
 class Clade(CladeBase):
 
@@ -165,6 +174,10 @@ class Clade(CladeBase):
         assert(len_max > 1)
         self._len_max = len_max
 
+    def _branch_descs(self):
+        for desc in self.descs:
+            desc.branch()
+
     def branch(self):
         n = np.ceil(self._len_descs() / self.len_max)
         n = np.min([n, self.len_max])
@@ -175,24 +188,32 @@ class Clade(CladeBase):
             print("part_descs: {}".format(part_descs))
             clades = []
             for part_desc in part_descs:
-                clades.append(Clade(X=self.X, y=self.y, model=self.model, n=self.n_max, initial_descendants=part_desc))
+                clades.append(Clade(X=self.X, y=self.y, model=self.model,
+                              n=self.n_max, initial_descendants=part_desc))
             self._descs = clades
-        for desc in self._descs:
-            desc.branch()
+        self._branch_descs()
 
-    def flatten(self):
-        pass
+    def collapse(self):
+        """
+        want to remove clades with single descendants
+        """
+        for desc in self.descs:
+            desc.collapse()
+            if desc._len_descs() == 1:
+                self._descs = list(self.descs) + list(desc.descs)
+                desc._descs = []
+
+
 
 
 class Individual(CladeBase):
 
-    def __init__(self, X=None, y=None, model=None, initial_descendants=[],
-                 **kwargs):
+    def __init__(self, X=None, y=None, model=None, **kwargs):
         super().__init__(**kwargs)
         self.gen = 0
         self.n_max = 1024 # allow many offspring...
         self.len_max = 0 # ...but move them up to the parent clade.
-        self._descs = initial_descendants
+        self._descs = []
         self._X = X
         self._y = y
         self._model = model
@@ -212,36 +233,18 @@ class Individual(CladeBase):
 
     @property
     def size(self):
-        return self._size_descs() + 1
+        return int(self.alive)
 
     @property
     def alive(self):
         return self._alive
 
-    def champ(self,loser=False):
-        if self.size > 1:
-            champ = self._champ(loser=loser)
-            winner,loser = self.comp([self, champ])
-            if loser is True:
-                return loser
-            else:
-                return winner
-        else:
-            return [self]
-
     @property
     def clade(self):
-        return chain([self], self.descs)
+        return [self]
+
+    def champ(self, **kwargs):
+        return self.clade
 
     def kill(self):
-        if len(list(self.descs)) > 1:
-            np.random.choice(self.descs, 1).kill()
-        else:
-            self._alive = false
-
-    def branch(self):
-        if self._len_descs() == 0:
-            return None
-        else:
-            return None
-            # return Clade of [self] + list(self.descs)
+        self._alive = False

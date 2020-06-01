@@ -31,10 +31,8 @@ class TestModulesCladeClade(unittest.TestCase):
                 CladeBase(initial_descendants=[
                     Individual(y=4),
                     CladeBase(initial_descendants=[
-                        Individual(y=5,
-                                   initial_descendants=[
-                            Individual(y=6)
-                            ]),
+                        Individual(y=5),
+                        Individual(y=6),
                         Individual(y=7)
                         ])
                     ])
