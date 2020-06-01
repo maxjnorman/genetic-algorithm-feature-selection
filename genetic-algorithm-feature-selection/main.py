@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 
 from modules.functions import chain
-from modules.clade import CladeBase, Individual
+from modules.clade import Clade, Individual
 
-clade = CladeBase()
+root = Clade(initial_descendants=[Individual(),Individual(),Individual(),
+                                  Individual(), Individual()],
+             n_max=8, max_daughters=2)
