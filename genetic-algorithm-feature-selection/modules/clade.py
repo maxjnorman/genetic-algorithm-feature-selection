@@ -149,6 +149,9 @@ class CladeBase:
     def collapse(self):
         pass
 
+    def simplify(self):
+        pass
+
 
 class Clade(CladeBase):
 
@@ -182,8 +185,8 @@ class Clade(CladeBase):
         n = np.ceil(self._len_descs() / self.len_max)
         n = np.min([n, self.len_max])
         n = int(n)
-        print("n: {}".format(n))
         if n > 1:
+            print("n: {}".format(n))
             part_descs = self.part(self.descs)
             print("part_descs: {}".format(part_descs))
             clades = []
@@ -197,12 +200,79 @@ class Clade(CladeBase):
         """
         want to remove clades with single descendants
         """
+        print("len(list(self.descs)): {}".format(len(list(self.descs))))
         for desc in self.descs:
             desc.collapse()
+            # print("len(list(desc.descs)): {}".format(len(list(desc.descs))))
             if desc._len_descs() == 1:
                 self._descs = list(self.descs) + list(desc.descs)
                 desc._descs = []
 
+    def simplify(self):
+        """
+        want to combine descs if len_max allows
+
+        https://stackoverflow.com/
+            questions/43313531/python-merging-list-elements-with-a-condition-in-a-bit-tricky-way
+        def join_while_too_short(it, length):
+            it = iter(it)
+            while True:
+                current = next(it)
+                while len(current) < length:
+                    current += ' ' + next(it)
+                yield current
+        """
+        tidy = []
+        untidy = []
+        # print()
+        # print([self])
+        for desc in self.descs:
+            desc.simplify()
+            # print("desc._len_descs(): {}".format(desc._len_descs()))
+            # print("desc.len_max: {}".format(desc.len_max))
+            if desc._len_descs() < desc.len_max:
+                untidy.append(desc)
+            else:
+                tidy.append(desc)
+        # print("tidy: {}".format(tidy))
+        print("len(tidy): {}".format(len(tidy)))
+        print("len(untidy): {}".format(len(untidy)))
+        if len(untidy) == 1:
+            tidy = tidy + untidy
+            untidy = []
+        elif len(untidy) > 1:
+            lens = [d._len_descs() for d in untidy]
+            # print("lens: {}".format(lens))
+            key = np.argsort(lens)
+            key = key.max() - key
+            # print("key: {}".format(key))
+            untidy = np.array(untidy)[key]
+            # print("untidy: {}".format(untidy))
+            lens = np.array(lens)[key]
+            # print("lens: {}".format(lens))
+            for i, desc in enumerate(untidy):
+                idx = np.arange(0, untidy.shape[0])
+                idx_i = idx[idx != i]
+                lens_i = lens[idx_i]
+                untidy_i = untidy[idx_i]
+                while (len(lens_i) > 0) and (np.min(lens_i) + desc._len_descs() < desc.len_max):
+                        print("len(lens_i): {}".format(len(lens_i)))
+                        print("np.min(lens_i): {}".format(np.min(lens_i)))
+                        print("desc._len_descs(): {}".format(desc._len_descs()))
+                        print("desc.len_max: {}".format(desc.len_max))
+                        print("lens_i: {}".format(lens_i))
+                        print("untidy_i: {}".format(untidy_i))
+                        print()
+                        idx_argmin = np.argmin(lens_i)
+                        problem = untidy_i[idx_argmin]
+                        desc._descs = list(desc.descs) + list(problem.descs)
+                        problem._descs = []
+                        # try:
+                        untidy_i = np.delete(untidy_i, idx_argmin)
+                        lens_i = np.delete(lens_i, idx_argmin)
+                        # except:
+                        #     untidy_i = []
+                        #     lens_i = []
 
 
 
