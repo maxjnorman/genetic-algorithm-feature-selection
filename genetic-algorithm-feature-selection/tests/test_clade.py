@@ -104,5 +104,26 @@ class TestCladeStructureMethods (unittest.TestCase):
         check = [d.y for d in list(clade.descs)]
         np.testing.assert_array_equal(check, ["A", "B"])
 
+    def test_branch13_descs(self):
+        clade = Clade(y="A", initial_descendants=[
+            Individual(y=1),
+            Individual(y=2),
+            Individual(y=3)
+            ])
+        clade.branch()
+        check = list([d.y for d in clade.descs])
+        np.testing.assert_array_equal(check, ["A", "A"])
+
+    def test_branch13_branch(self):
+        clade = Clade(y="A", initial_descendants=[
+            Individual(y=1),
+            Individual(y=2),
+            Individual(y=3)
+            ])
+        clade.branch()
+        check = np.array([d.y for d in clade.clade])
+        check = check[np.argsort(check)]
+        np.testing.assert_array_equal(check, np.array([1, 2, 3]))
+
 if __name__ == '__main__':
     unittest.main()

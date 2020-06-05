@@ -4,7 +4,9 @@ import pandas as pd
 from modules.functions import chain
 from modules.clade import Clade, Individual
 
-max_daughters = 4
+from sklearn.tree import DecisionTreeClassifier
+
+max_daughters = 8
 
 clade = Clade(
     y="A",
@@ -57,14 +59,28 @@ clade = Clade(
             ])
 
     ])
-
-root = Clade(initial_descendants=[Individual(),Individual(),Individual(),
-                                  Individual(), Individual()],
-             n_max=8, max_daughters=2)
+tree = DecisionTreeClassifier
+root = Clade(
+    initial_descendants=[
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree()),
+        Individual(model=tree()),Individual(model=tree()),Individual(model=tree())],
+    n_max=8, max_daughters=max_daughters
+    )
 vine = Clade(
     initial_descendants=[Clade(
         initial_descendants=[Clade(
-            initial_descendants=[Individual()]
+            initial_descendants=[Individual(model=tree())]
             )]
         )]
     )
