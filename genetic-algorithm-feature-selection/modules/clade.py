@@ -359,6 +359,10 @@ class Clade(CladeBase):
         """
         want to remove clades with single descendants
         """
+
+        if self._len_descs() == 1:
+            self._descs = list(list(self.descs)[0].descs)
+
         for desc in self.descs:
             desc.collapse()
             if desc._len_descs() == 1:
@@ -402,12 +406,14 @@ class Clade(CladeBase):
                 lens_i = lens[idx_i]
                 untidy_i = untidy[idx_i]
                 while (len(lens_i) > 0) and (np.min(lens_i) + desc._len_descs() < desc.len_max):
-                    idx_argmin = np.argmin(lens_i)
-                    problem = untidy_i[idx_argmin]
+                    gap = desc.len_max - desc._len_descs()
+                    idx_transfer = np.argmax(lens_i[lens_i <= gap])
+                    # idx_argmin = np.argmin(lens_i)
+                    problem = untidy_i[idx_transfer]
                     desc._descs = list(desc.descs) + list(problem.descs)
                     problem._descs = []
-                    untidy_i = np.delete(untidy_i, idx_argmin)
-                    lens_i = np.delete(lens_i, idx_argmin)
+                    untidy_i = np.delete(untidy_i, idx_transfer)
+                    lens_i = np.delete(lens_i, idx_transfer)
 
 
 
