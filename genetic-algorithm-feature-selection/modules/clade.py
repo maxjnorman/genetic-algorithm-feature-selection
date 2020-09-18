@@ -359,7 +359,8 @@ class Clade(CladeBase):
         """
 
         if self._len_descs() == 1:
-            self._descs = list(list(self.descs)[0].descs)
+            if list(self.descs)[0]._len_descs() > 0:
+                self._descs = list(list(self.descs)[0].descs)
 
         for desc in self.descs:
             desc.collapse()
