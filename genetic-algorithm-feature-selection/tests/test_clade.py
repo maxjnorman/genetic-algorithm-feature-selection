@@ -77,9 +77,8 @@ class TestCladeStructureMethods (unittest.TestCase):
     def test_collapse32(self):
         clade = Clade(initial_descendants=[
             Clade(initial_descendants=[
-                Clade(initial_descendants=[
+                Clade(y="C", initial_descendants=[
                     Clade(
-                        y="C",
                         initial_descendants=[
                             Individual(y="A"),
                             Individual(y="B")

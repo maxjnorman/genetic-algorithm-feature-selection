@@ -104,21 +104,56 @@ class CladeBase:
         return part
 
     def compete(self, iter, loser=False):
+        iter = np.random.choice(iter, len(iter)).tolist()
         teams = self.part(iter, n=2)
-        red, blue = [np.nanmean(np.stack([i.error for i in team]), axis=0)
-                     for team
-                     in teams]
-        score = np.nanmean(red - blue)
+
+        red_team = teams[0]
+        blue_team = teams[1]
+        print(red_team)
+        print(blue_team)
+        print()
+
+        red_error = np.stack([i.oob for i in red_team])
+        blue_error = np.stack([i.oob for i in blue_team])
+        print(red_error)
+        print(blue_error)
+        print()
+
+        red_error = np.nanmean(red_error, axis=0)
+        blue_error = np.nanmean(blue_error, axis=0)
+        print(red_error)
+        print(blue_error)
+        print()
+
+        diffs = red_error - blue_error
+        print(diffs[~np.isnan(diffs)])
+        print(len(diffs[~np.isnan(diffs)]))
+        print()
+
+        if not np.all(np.isnan(diffs)):
+            score = np.nanmean(diffs)
+            print("BUGFIX1-A")
+        else:
+            score = np.random.random() - .5
+            print("BUGFIX1-B")
+        print(score)
+        print()
+
         if score > 0:
             teams = teams[::-1]
+        print(teams)
+        print()
+
         return teams
 
     def _champ(self, loser=False):
         stable = list(self.descs)
         if len(stable) > 0:
             while len(stable) > 1:
-                arena = None # TODO:
-                #arena sorts by shared mse
+                # arena = None # TODO:
+                # arena sorts by shared mse
+                arena = self.compete(stable)
+                # print(arena)
                 if loser is True:
                     stable = arena[0]
                 else:
@@ -158,20 +193,64 @@ class CladeBase:
     def branch(self):
         pass
 
-    def breed(self):
-        pass
-
     def collapse(self):
         pass
 
     def simplify(self):
         pass
 
-    def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None):
+
+class Clade(CladeBase):
+
+    def __init__(self, X=None, y=None, model=None, initial_descendants=[], n=8,
+                 max_daughters=2,
+                 train_fraction=.666667, oob_power=2., **kwargs):
+        super().__init__(**kwargs)
+        self._descs = initial_descendants
+        self.gen = 0
+        self.n_max = n # living individuals
+        self.len_max = max_daughters # max len descs
+        self._X = X
+        self._y = y
+        self._model = model  # only to be used to build individuals
+        self._oob = None
+        self._train_fraction = train_fraction
+        self._oob_power = oob_power
+
+    @property
+    def _mask(self):
+        return [desc._mask for desc in self.descs]
+
+    @property
+    def _idx(self):
+        return [desc._idx for desc in self.descs]
+
+    @property
+    def len_max(self):
+        return self._len_max
+
+    @len_max.setter
+    def len_max(self, len_max):
+        assert(isinstance(len_max, int))
+        assert(len_max > 1)
+        self._len_max = len_max
+
+    def _branch_descs(self):
+        for desc in self.descs:
+            desc.branch()
+
+    def _breed_descs(self):
+        for desc in self.descs:
+            desc.breed()
+
+    def breed(self):
+        self._breed_descs()
+
+    def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None, replace=True):
         self._X = X
         self._y = y
         for desc in self.descs:
-            desc.fit(X, y, sample_weight, check_input, X_idx_sorted)
+            desc.fit(X, y, sample_weight, check_input, X_idx_sorted, replace=replace)
 
     def predict(self, X, check_input=True):
         stack = []
@@ -222,38 +301,6 @@ class CladeBase:
 
         if len(predictions) > 0:
             return np.concatenate(predictions, axis=0)
-
-
-class Clade(CladeBase):
-
-    def __init__(self, X=None, y=None, model=None, initial_descendants=[], n=8,
-                 max_daughters=2,
-                 train_fraction=.666667, oob_power=2., **kwargs):
-        super().__init__(**kwargs)
-        self._descs = initial_descendants
-        self.gen = 0
-        self.n_max = n # living individuals
-        self.len_max = max_daughters # max len descs
-        self._X = X
-        self._y = y
-        self._model = model  # only to be used to build individuals
-        self._oob = None
-        self._train_fraction = train_fraction
-        self._oob_power = oob_power
-
-    @property
-    def len_max(self):
-        return self._len_max
-
-    @len_max.setter
-    def len_max(self, len_max):
-        assert(isinstance(len_max, int))
-        assert(len_max > 1)
-        self._len_max = len_max
-
-    def _branch_descs(self):
-        for desc in self.descs:
-            desc.branch()
 
     @property
     def oob(self):
@@ -357,10 +404,10 @@ class Clade(CladeBase):
         """
         want to remove clades with single descendants
         """
-
         if self._len_descs() == 1:
-            if list(self.descs)[0]._len_descs() > 0:
-                self._descs = list(list(self.descs)[0].descs)
+            if list(self.descs)[0]._len_descs() > 0:  # it is not an Individual
+                desc = list(self.descs)[0]  # the descendant object
+                self._descs = list(desc.descs)
 
         for desc in self.descs:
             desc.collapse()
@@ -405,9 +452,9 @@ class Clade(CladeBase):
                 lens_i = lens[idx_i]
                 untidy_i = untidy[idx_i]
                 while (len(lens_i) > 0) and (np.min(lens_i) + desc._len_descs() < desc.len_max):
-                    # gap = desc.len_max - desc._len_descs()
-                    # idx_transfer = np.argmax(lens_i[lens_i <= gap])
-                    idx_transfer = np.argmin(lens_i)
+                    gap = desc.len_max - desc._len_descs()
+                    idx_transfer = np.argmax(lens_i[lens_i <= gap])
+                    # idx_transfer = np.argmin(lens_i)
                     problem = untidy_i[idx_transfer]
                     desc._descs = list(desc.descs) + list(problem.descs)
                     problem._descs = []
@@ -418,7 +465,7 @@ class Clade(CladeBase):
 
 class Individual(CladeBase):
 
-    def __init__(self, X=None, y=None, model=None, genes=None,
+    def __init__(self, X=None, y=None, model=None, genes=np.array([None]),
                  train_fraction=.666667, oob_power=2., **kwargs):
         super().__init__(**kwargs)
         self.gen = 0
@@ -438,11 +485,14 @@ class Individual(CladeBase):
         self._fertile = False
         self._train_fraction = train_fraction
         self._oob_power = oob_power
-        self._genes = genes
+        self.genotype = genes
 
     # @property
     # def _descs(self):
     #     yield from [self]
+
+    def breed(self):
+        pass
 
     @property
     def train_fraction(self):
@@ -451,8 +501,8 @@ class Individual(CladeBase):
     @train_fraction.setter
     def train_fraction(self, train_fraction):
         assert(isinstance(train_fraction, float))
-        assert(train_fraction <= 1.)
-        assert(train_fraction >= 0.)
+        # assert(train_fraction <= 1.)
+        assert(train_fraction > 0.)
         self._train_fraction = train_fraction
 
     @property
@@ -507,16 +557,16 @@ class Individual(CladeBase):
         self._alive = False
 
     def fit(self, X, y, sample_weight=None, check_input=True,
-            X_idx_sorted=None):
+            X_idx_sorted=None, replace=True):
         n = y.shape[0]
         # TODO: split into train and test and bootstrap
         self._idx = np.random.choice(
             np.arange(n),
             int(np.ceil(n * self.train_fraction)),
-            replace=False
+            replace=replace
         )
         mask = np.repeat(False, n)
-        np.put(mask, self._idx, True)
+        np.put(mask, np.unique(self._idx), True)
         self._mask = mask
         # TODO: apply genes to X
         self._X = X
