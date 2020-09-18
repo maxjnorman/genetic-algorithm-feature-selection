@@ -113,8 +113,6 @@ class CladeBase:
             teams = teams[::-1]
         return teams
 
-
-
     def _champ(self, loser=False):
         stable = list(self.descs)
         if len(stable) > 0:
@@ -440,6 +438,10 @@ class Individual(CladeBase):
         self._train_fraction = train_fraction
         self._oob_power = oob_power
         self._genes = genes
+
+    # @property
+    # def _descs(self):
+    #     yield from [self]
 
     @property
     def train_fraction(self):
