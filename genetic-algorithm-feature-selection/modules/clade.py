@@ -404,9 +404,9 @@ class Clade(CladeBase):
                 lens_i = lens[idx_i]
                 untidy_i = untidy[idx_i]
                 while (len(lens_i) > 0) and (np.min(lens_i) + desc._len_descs() < desc.len_max):
-                    gap = desc.len_max - desc._len_descs()
-                    idx_transfer = np.argmax(lens_i[lens_i <= gap])
-                    # idx_argmin = np.argmin(lens_i)
+                    # gap = desc.len_max - desc._len_descs()
+                    # idx_transfer = np.argmax(lens_i[lens_i <= gap])
+                    idx_transfer = np.argmin(lens_i)
                     problem = untidy_i[idx_transfer]
                     desc._descs = list(desc.descs) + list(problem.descs)
                     problem._descs = []
