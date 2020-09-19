@@ -223,6 +223,28 @@ class Clade(CladeBase):
             desc.breed()
 
     def breed(self):
+        parent = self.highlander()
+        genes = parent.genotype
+        pool = self.genotype
+        values = pool.T[
+            range(pool.shape[1]),
+            np.random.choice(pool.shape[0], pool.shape[1])
+            ].reshape(1,-1)
+        alpha = np.random.random()
+        alpha = np.max((alpha, .1))
+        alpha = np.min((alpha, .9))
+        mask = np.random.random((1, genes.shape[1])) < alpha
+        print(f"alpha: {alpha}")
+        print(f"genes.shape: {genes.shape}")
+        print(f"mask.shape: {mask.shape}")
+        print(f"values.shape: {values.shape}")
+        np.putmask(genes, mask, values)
+        offspring = Individual(genes=genes.reshape((-1,)), model=parent._model.__class__(),
+                               expression_function=parent._expression_function,
+                               X=None, y=None,
+                               train_fraction=parent._train_fraction,
+                               oob_power=parent._oob_power)
+        self._descs = np.array(list(self.descs) + [offspring])
         self._breed_descs()
 
     def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None, replace=True):
