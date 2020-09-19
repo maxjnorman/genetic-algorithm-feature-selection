@@ -62,64 +62,104 @@ replace = True
 #             ])
 
 #     ])
-tree = DecisionTreeClassifier
-root = Clade(
-    initial_descendants=[
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=6), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=7), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=6), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=7), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=6), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=7), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=6), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=7), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=6), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=7), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=1), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=2), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=3), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=4), train_fraction=train_fraction),
-        Individual(model=tree(max_depth=5), train_fraction=train_fraction)],
-    n_max=128,
-    max_daughters=max_daughters,
-    train_fraction=train_fraction
-    )
-# vine = Clade(
-#     initial_descendants=[Clade(
-#         initial_descendants=[Clade(
-#             initial_descendants=[Individual(model=tree(max_depth=3), train_fraction=train_fraction)]
-#             )]
-#         )]
-#     )
 
 
 dat = pd.read_csv("/Users/maxjnorman/OneDrive - HEOR Ltd/Projects/Main/HEOR00324 - ML INR/dataset_20/baseline_20_simple.csv")
-y = (dat["ttr_out_ros"] > 0.3).astype(int).values
-X = dat.loc[:,dat.columns != "ttr_out_ros"].values
+colnames = dat.columns[dat.columns != "ttr_out_ros"]
+y = (dat["ttr_out_ros"] > dat["ttr_out_ros"].mean()).astype(int).values
+X = dat.loc[:,colnames].values
+
+splits = np.concatenate((
+    np.arange(1, colnames.shape[0]),
+    colnames.shape[0] + np.array([1,2,7])
+    ))
+
+def express_hyps(vals):
+    assert(len(vals) == 2)
+    criterion = ("gini", "entropy")[vals[0]]
+    max_depth = vals[1]
+    return {"criterion":criterion, "max_depth":max_depth}
+
+# def express(genes, colnames=colnames, splits=splits):
+#     vals = express_values(genes, splits)
+#     mask = vals[np.arange(0, colnames.shape[0])]
+#     hyps = vals[np.arange(colnames.shape[0], vals.shape[0])]
+#     return {"mask":mask.astype(bool), "hyps":express_hyps(hyps)}
+
+def express_factory(colnames, splits, express_hyps):
+
+    def express_values(genes, splits=np.array([])):
+        genes = genes.round().astype(bool).astype(int).astype(str)
+        bin_arrs = np.split(genes, np.unique(splits))  # binary arrays
+        ints = np.array([
+            int("".join(gene), 2)
+            for gene
+            in bin_arrs
+            if gene.shape[0] > 0
+            ])
+        return ints
+
+    def express(genes):
+        vals = express_values(genes, splits)
+        mask = vals[np.arange(0, colnames.shape[0])]
+        hyps = vals[np.arange(colnames.shape[0], vals.shape[0])]
+        return {"mask":mask.astype(bool), "hyps":express_hyps(hyps)}
+
+    return express
+
+
+genes = np.random.random(splits.max()).round().astype(bool).astype(int)
+express = express_factory(colnames, splits, express_hyps)
+phenotype = express(genes)
+mask = phenotype["mask"]
+hyps = phenotype["hyps"]
+
+tree = DecisionTreeClassifier
+root = Clade(
+    initial_descendants=[
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)),
+        Individual(model=tree(), train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int))],
+    n_max=128,
+    max_daughters=max_daughters,
+    train_fraction=train_fraction, expression_function=express, genes = np.random.random(splits.max()).round().astype(bool).astype(int)
+    )
 
 root.fit(X,y,replace=replace)

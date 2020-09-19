@@ -444,7 +444,7 @@ class Clade(CladeBase):
 
 class Individual(CladeBase):
 
-    def __init__(self, X=None, y=None, model=None, genes=np.array([None]),
+    def __init__(self, genes, model, expression_function, X=None, y=None,
                  train_fraction=.666667, oob_power=2., **kwargs):
         super().__init__(**kwargs)
         self.gen = 0
@@ -464,11 +464,21 @@ class Individual(CladeBase):
         self._fertile = False
         self._train_fraction = train_fraction
         self._oob_power = oob_power
-        self.genotype = genes
+        self._genes = genes
+        self._expression_function = expression_function
 
-    # @property
-    # def _descs(self):
-    #     yield from [self]
+    @property
+    def phenotype(self):
+        return self._expression_function(self._genes)
+
+    @property
+    def genotype(self):
+        return self._genes.reshape((1,-1))
+
+    @genotype.setter
+    def genotype(self, genes):
+        assert(len(genes.shape) == 1)
+        self._genes = genes
 
     def breed(self):
         pass
@@ -552,10 +562,12 @@ class Individual(CladeBase):
         )
         mask = np.repeat(False, n)
         np.put(mask, np.unique(self._idx), True)
-        self._mask = mask
+        self._mask = mask  # mask for rows, not cols
         # TODO: apply genes to X
         self._X = X
         self._y = y
+        # TODO: apply genes to model
+        self._model.set_params()
         self._model.fit(self._X[self._mask], self._y[self._mask],
                         sample_weight, check_input, X_idx_sorted)
         self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask)])[:,1]
