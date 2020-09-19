@@ -567,7 +567,7 @@ class Individual(CladeBase):
         self._X = X
         self._y = y
         # TODO: apply genes to model
-        self._model.set_params()
+        self._model.set_params(**self.phenotype["hyps"])
         self._model.fit(self._X[self._mask], self._y[self._mask],
                         sample_weight, check_input, X_idx_sorted)
         self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask)])[:,1]
