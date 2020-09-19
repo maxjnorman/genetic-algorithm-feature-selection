@@ -77,7 +77,7 @@ splits = np.concatenate((
 def express_hyps(vals):
     assert(len(vals) == 2)
     criterion = ("gini", "entropy")[vals[0]]
-    max_depth = vals[1]
+    max_depth = vals[1] + 1
     return {"criterion":criterion, "max_depth":max_depth}
 
 # def express(genes, colnames=colnames, splits=splits):
@@ -163,3 +163,6 @@ root = Clade(
     )
 
 root.fit(X,y,replace=replace)
+root.branch()
+root.simplify()
+root.collapse()

@@ -468,6 +468,15 @@ class Individual(CladeBase):
         self._expression_function = expression_function
 
     @property
+    def fertile(self):
+        fertile = True
+        try:
+            check = self._model.feature_importances_
+        except:  # TODO: catch NotFittedError
+            fertile = False
+        return fertile
+
+    @property
     def phenotype(self):
         return self._expression_function(self._genes)
 
@@ -568,16 +577,21 @@ class Individual(CladeBase):
         self._y = y
         # TODO: apply genes to model
         self._model.set_params(**self.phenotype["hyps"])
-        self._model.fit(self._X[self._mask], self._y[self._mask],
-                        sample_weight, check_input, X_idx_sorted)
-        self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask)])[:,1]
+        self._model.fit(
+            self._X[self._mask,:][:,self.phenotype["mask"]],
+            self._y[self._mask],
+            sample_weight,
+            check_input,
+            X_idx_sorted
+        )
+        self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask),:])[:,1]
         self._oob_truth = self._y[np.logical_not(self._mask)]
         self._oob = self._oob_score - self._oob_truth
 
     def predict(self, X, check_input=True):
-        predictions = self._model.predict(X, check_input=True)
+        predictions = self._model.predict(X[:,self.phenotype["mask"]], check_input=True)
         return predictions
 
     def predict_proba(self, X, check_input=True):
-        predictions = self._model.predict_proba(X, check_input=True)
+        predictions = self._model.predict_proba(X[:,self.phenotype["mask"]], check_input=True)
         return predictions
