@@ -92,57 +92,38 @@ class CladeBase:
 
     def part(self, iter, n=2):
         part = [list() for _ in range(n)]
-        # print("part: {}".format(part))
+        # # print("part: {}".format(part))
         tally = np.repeat(0, n)
-        # print("tally: {}".format(tally))
+        # # print("tally: {}".format(tally))
         for item in iter:
-            # print("item: {}".format(item))
-            # print("np.argmin(tally): {}".format(np.argmin(tally)))
+            # # print("item: {}".format(item))
+            # # print("np.argmin(tally): {}".format(np.argmin(tally)))
             part[np.argmin(tally)].append(item)
             tally[np.argmin(tally)] += item.size
-            # print("tally: {}".format(tally))
+            # # print("tally: {}".format(tally))
         return part
 
     def compete(self, iter, loser=False):
-        iter = np.random.choice(iter, len(iter)).tolist()
+        iter = np.random.choice(iter, len(iter), replace=False).tolist()
         teams = self.part(iter, n=2)
-
+        try:
+            blue_team = teams[1]
+        except:  # TODO: catch specific exception.
+            return teams
         red_team = teams[0]
-        blue_team = teams[1]
-        print(red_team)
-        print(blue_team)
-        print()
-
-        red_error = np.stack([i.oob for i in red_team])
-        blue_error = np.stack([i.oob for i in blue_team])
-        print(red_error)
-        print(blue_error)
-        print()
-
-        red_error = np.nanmean(red_error, axis=0)
-        blue_error = np.nanmean(blue_error, axis=0)
-        print(red_error)
-        print(blue_error)
-        print()
-
+        red_error = np.concatenate([i.oob for i in red_team], axis=0)
+        blue_error = np.concatenate([i.oob for i in blue_team], axis=0)
+        red_error = np.nanmean(np.power(red_error, 2.), axis=0)
+        blue_error = np.nanmean(np.power(blue_error, 2.), axis=0)
         diffs = red_error - blue_error
-        print(diffs[~np.isnan(diffs)])
-        print(len(diffs[~np.isnan(diffs)]))
-        print()
 
         if not np.all(np.isnan(diffs)):
             score = np.nanmean(diffs)
-            print("BUGFIX1-A")
         else:
             score = np.random.random() - .5
-            print("BUGFIX1-B")
-        print(score)
-        print()
 
-        if score > 0:
+        if score < 0:
             teams = teams[::-1]
-        print(teams)
-        print()
 
         return teams
 
@@ -153,7 +134,7 @@ class CladeBase:
                 # arena = None # TODO:
                 # arena sorts by shared mse
                 arena = self.compete(stable)
-                # print(arena)
+                # # print(arena)
                 if loser is True:
                     stable = arena[0]
                 else:
@@ -166,9 +147,11 @@ class CladeBase:
     def champ(self, loser=False):
         return self._champ(loser=loser)
 
-    @property
     def highlander(self):
-        return self.champ().champ()
+        return self.champ(loser=False).highlander()
+
+    def baggage(self):
+        return self.champ(loser=True).baggage()
 
     @property
     def fertile(self):
@@ -176,10 +159,6 @@ class CladeBase:
             if desc.fertile:
                 return true
         return false
-
-    @property
-    def baggage(self):
-        return self.champ(false).champ(false)
 
     def kill(self):
         self.baggage().kill()
@@ -547,10 +526,16 @@ class Individual(CladeBase):
             oob = np.repeat(np.nan, mask.shape[0])
             idx = np.where(mask)[0]
             np.put(oob, idx, self._oob_score)
-            return oob
+            return oob.reshape((1,-1))
 
 
     def champ(self, **kwargs):
+        return self
+
+    def highlander(self, **kwargs):
+        return self
+
+    def baggage(self, **kwargs):
         return self
 
     def kill(self):
