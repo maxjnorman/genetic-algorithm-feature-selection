@@ -92,35 +92,49 @@ class CladeBase:
 
     def part(self, iter, n=2):
         part = [list() for _ in range(n)]
-        # print("part: {}".format(part))
+        # # print("part: {}".format(part))
         tally = np.repeat(0, n)
-        # print("tally: {}".format(tally))
+        # # print("tally: {}".format(tally))
         for item in iter:
-            # print("item: {}".format(item))
-            # print("np.argmin(tally): {}".format(np.argmin(tally)))
+            # # print("item: {}".format(item))
+            # # print("np.argmin(tally): {}".format(np.argmin(tally)))
             part[np.argmin(tally)].append(item)
             tally[np.argmin(tally)] += item.size
-            # print("tally: {}".format(tally))
+            # # print("tally: {}".format(tally))
         return part
 
     def compete(self, iter, loser=False):
+        iter = np.random.choice(iter, len(iter), replace=False).tolist()
         teams = self.part(iter, n=2)
-        red, blue = [np.nanmean(np.stack([i.error for i in team]), axis=0)
-                     for team
-                     in teams]
-        score = np.nanmean(red - blue)
-        if score > 0:
+        try:
+            blue_team = teams[1]
+        except:  # TODO: catch specific exception.
+            return teams
+        red_team = teams[0]
+        red_error = np.concatenate([i.oob for i in red_team], axis=0)
+        blue_error = np.concatenate([i.oob for i in blue_team], axis=0)
+        red_error = np.nanmean(np.power(red_error, 2.), axis=0)
+        blue_error = np.nanmean(np.power(blue_error, 2.), axis=0)
+        diffs = red_error - blue_error
+
+        if not np.all(np.isnan(diffs)):
+            score = np.nanmean(diffs)
+        else:
+            score = np.random.random() - .5
+
+        if score < 0:
             teams = teams[::-1]
+
         return teams
-
-
 
     def _champ(self, loser=False):
         stable = list(self.descs)
         if len(stable) > 0:
             while len(stable) > 1:
-                arena = None # TODO:
-                #arena sorts by shared mse
+                # arena = None # TODO:
+                # arena sorts by shared mse
+                arena = self.compete(stable)
+                # # print(arena)
                 if loser is True:
                     stable = arena[0]
                 else:
@@ -133,9 +147,11 @@ class CladeBase:
     def champ(self, loser=False):
         return self._champ(loser=loser)
 
-    @property
     def highlander(self):
-        return self.champ().champ()
+        return self.champ(loser=False).highlander()
+
+    def baggage(self):
+        return self.champ(loser=True).baggage()
 
     @property
     def fertile(self):
@@ -143,10 +159,6 @@ class CladeBase:
             if desc.fertile:
                 return true
         return false
-
-    @property
-    def baggage(self):
-        return self.champ(false).champ(false)
 
     def kill(self):
         self.baggage().kill()
@@ -160,20 +172,86 @@ class CladeBase:
     def branch(self):
         pass
 
-    def breed(self):
-        pass
-
     def collapse(self):
         pass
 
     def simplify(self):
         pass
 
-    def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None):
+
+class Clade(CladeBase):
+
+    def __init__(self, X=None, y=None, model=None, initial_descendants=[], n=8,
+                 max_daughters=2,
+                 train_fraction=.666667, oob_power=2., **kwargs):
+        super().__init__(**kwargs)
+        self._descs = initial_descendants
+        self.gen = 0
+        self.n_max = n # living individuals
+        self.len_max = max_daughters # max len descs
+        self._X = X
+        self._y = y
+        self._model = model  # only to be used to build individuals
+        self._oob = None
+        self._train_fraction = train_fraction
+        self._oob_power = oob_power
+
+    @property
+    def _mask(self):
+        return [desc._mask for desc in self.descs]
+
+    @property
+    def _idx(self):
+        return [desc._idx for desc in self.descs]
+
+    @property
+    def len_max(self):
+        return self._len_max
+
+    @len_max.setter
+    def len_max(self, len_max):
+        assert(isinstance(len_max, int))
+        assert(len_max > 1)
+        self._len_max = len_max
+
+    def _branch_descs(self):
+        for desc in self.descs:
+            desc.branch()
+
+    def _breed_descs(self):
+        for desc in self.descs:
+            desc.breed()
+
+    def breed(self):
+        parent = self.highlander()
+        genes = parent.genotype
+        pool = self.genotype
+        values = pool.T[
+            range(pool.shape[1]),
+            np.random.choice(pool.shape[0], pool.shape[1])
+            ].reshape(1,-1)
+        alpha = np.random.random()
+        alpha = np.max((alpha, .1))
+        alpha = np.min((alpha, .9))
+        mask = np.random.random((1, genes.shape[1])) < alpha
+        print(f"alpha: {alpha}")
+        print(f"genes.shape: {genes.shape}")
+        print(f"mask.shape: {mask.shape}")
+        print(f"values.shape: {values.shape}")
+        np.putmask(genes, mask, values)
+        offspring = Individual(genes=genes.reshape((-1,)), model=parent._model.__class__(),
+                               expression_function=parent._expression_function,
+                               X=None, y=None,
+                               train_fraction=parent._train_fraction,
+                               oob_power=parent._oob_power)
+        self._descs = np.array(list(self.descs) + [offspring])
+        self._breed_descs()
+
+    def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None, replace=True):
         self._X = X
         self._y = y
         for desc in self.descs:
-            desc.fit(X, y, sample_weight, check_input, X_idx_sorted)
+            desc.fit(X, y, sample_weight, check_input, X_idx_sorted, replace=replace)
 
     def predict(self, X, check_input=True):
         stack = []
@@ -224,38 +302,6 @@ class CladeBase:
 
         if len(predictions) > 0:
             return np.concatenate(predictions, axis=0)
-
-
-class Clade(CladeBase):
-
-    def __init__(self, X=None, y=None, model=None, initial_descendants=[], n=8,
-                 max_daughters=2,
-                 train_fraction=.666667, oob_power=2., **kwargs):
-        super().__init__(**kwargs)
-        self._descs = initial_descendants
-        self.gen = 0
-        self.n_max = n # living individuals
-        self.len_max = max_daughters # max len descs
-        self._X = X
-        self._y = y
-        self._model = model  # only to be used to build individuals
-        self._oob = None
-        self._train_fraction = train_fraction
-        self._oob_power = oob_power
-
-    @property
-    def len_max(self):
-        return self._len_max
-
-    @len_max.setter
-    def len_max(self, len_max):
-        assert(isinstance(len_max, int))
-        assert(len_max > 1)
-        self._len_max = len_max
-
-    def _branch_descs(self):
-        for desc in self.descs:
-            desc.branch()
 
     @property
     def oob(self):
@@ -359,6 +405,11 @@ class Clade(CladeBase):
         """
         want to remove clades with single descendants
         """
+        if self._len_descs() == 1:
+            if list(self.descs)[0]._len_descs() > 0:  # it is not an Individual
+                desc = list(self.descs)[0]  # the descendant object
+                self._descs = list(desc.descs)
+
         for desc in self.descs:
             desc.collapse()
             if desc._len_descs() == 1:
@@ -402,18 +453,20 @@ class Clade(CladeBase):
                 lens_i = lens[idx_i]
                 untidy_i = untidy[idx_i]
                 while (len(lens_i) > 0) and (np.min(lens_i) + desc._len_descs() < desc.len_max):
-                    idx_argmin = np.argmin(lens_i)
-                    problem = untidy_i[idx_argmin]
+                    gap = desc.len_max - desc._len_descs()
+                    idx_transfer = np.argmax(lens_i[lens_i <= gap])
+                    # idx_transfer = np.argmin(lens_i)
+                    problem = untidy_i[idx_transfer]
                     desc._descs = list(desc.descs) + list(problem.descs)
                     problem._descs = []
-                    untidy_i = np.delete(untidy_i, idx_argmin)
-                    lens_i = np.delete(lens_i, idx_argmin)
+                    untidy_i = np.delete(untidy_i, idx_transfer)
+                    lens_i = np.delete(lens_i, idx_transfer)
 
 
 
 class Individual(CladeBase):
 
-    def __init__(self, X=None, y=None, model=None, genes=None,
+    def __init__(self, genes, model, expression_function, X=None, y=None,
                  train_fraction=.666667, oob_power=2., **kwargs):
         super().__init__(**kwargs)
         self.gen = 0
@@ -434,6 +487,32 @@ class Individual(CladeBase):
         self._train_fraction = train_fraction
         self._oob_power = oob_power
         self._genes = genes
+        self._expression_function = expression_function
+
+    @property
+    def fertile(self):
+        fertile = True
+        try:
+            check = self._model.feature_importances_
+        except:  # TODO: catch NotFittedError
+            fertile = False
+        return fertile
+
+    @property
+    def phenotype(self):
+        return self._expression_function(self._genes)
+
+    @property
+    def genotype(self):
+        return self._genes.reshape((1,-1))
+
+    @genotype.setter
+    def genotype(self, genes):
+        assert(len(genes.shape) == 1)
+        self._genes = genes
+
+    def breed(self):
+        pass
 
     @property
     def train_fraction(self):
@@ -442,8 +521,8 @@ class Individual(CladeBase):
     @train_fraction.setter
     def train_fraction(self, train_fraction):
         assert(isinstance(train_fraction, float))
-        assert(train_fraction <= 1.)
-        assert(train_fraction >= 0.)
+        # assert(train_fraction <= 1.)
+        assert(train_fraction > 0.)
         self._train_fraction = train_fraction
 
     @property
@@ -488,40 +567,53 @@ class Individual(CladeBase):
             oob = np.repeat(np.nan, mask.shape[0])
             idx = np.where(mask)[0]
             np.put(oob, idx, self._oob_score)
-            return oob
+            return oob.reshape((1,-1))
 
 
     def champ(self, **kwargs):
+        return self
+
+    def highlander(self, **kwargs):
+        return self
+
+    def baggage(self, **kwargs):
         return self
 
     def kill(self):
         self._alive = False
 
     def fit(self, X, y, sample_weight=None, check_input=True,
-            X_idx_sorted=None):
+            X_idx_sorted=None, replace=True):
         n = y.shape[0]
         # TODO: split into train and test and bootstrap
         self._idx = np.random.choice(
             np.arange(n),
             int(np.ceil(n * self.train_fraction)),
-            replace=False
+            replace=replace
         )
         mask = np.repeat(False, n)
-        np.put(mask, self._idx, True)
-        self._mask = mask
+        np.put(mask, np.unique(self._idx), True)
+        self._mask = mask  # mask for rows, not cols
         # TODO: apply genes to X
         self._X = X
         self._y = y
-        self._model.fit(self._X[self._mask], self._y[self._mask],
-                        sample_weight, check_input, X_idx_sorted)
-        self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask)])[:,1]
+        # TODO: apply genes to model
+        self._model.set_params(**self.phenotype["hyps"])
+        self._model.fit(
+            self._X[self._mask,:][:,self.phenotype["mask"]],
+            self._y[self._mask],
+            sample_weight,
+            check_input,
+            X_idx_sorted
+        )
+        self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask),:])[:,1]
         self._oob_truth = self._y[np.logical_not(self._mask)]
         self._oob = self._oob_score - self._oob_truth
 
     def predict(self, X, check_input=True):
-        predictions = self._model.predict(X, check_input=True)
+        predictions = self._model.predict(X[:,self.phenotype["mask"]], check_input=True)
         return predictions
 
     def predict_proba(self, X, check_input=True):
-        predictions = self._model.predict_proba(X, check_input=True)
+        predictions = self._model.predict_proba(X[:,self.phenotype["mask"]], check_input=True)
         return predictions
