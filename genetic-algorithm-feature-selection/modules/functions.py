@@ -28,7 +28,9 @@ def express_vals(genes, cuts, labels):
         in np.split(genes, cuts)
         if arr.shape[0] > 0
         ])
-    assert(len(vals) == len(labels))
+    # print(vals)
+    # print(labels)
+    # assert(len(vals) == len(labels))
     vals = dict(zip(labels, vals))
     return vals, excess
 
