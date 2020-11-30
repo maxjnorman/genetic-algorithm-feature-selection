@@ -1,6 +1,7 @@
 # classes to for the overall population structure
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 from .functions import chain
 
 class CladeBase:
@@ -480,7 +481,10 @@ class Individual(CladeBase):
         self._oob = None
         self._oob_score = None
         self._oob_truth = None
-        self._mask = None
+        self._error = None
+        self._error_score = None
+        self._error_truth = None
+        self._row_mask = None
         self._idx = None
         self._alive = True
         self._fertile = False
@@ -546,23 +550,24 @@ class Individual(CladeBase):
     def clade(self):
         return [self]
 
+    # TODO: error should be in-bag error
     @property
     def error(self):
-        if self._oob is None:
+        if self._error is None:
             return None
         else:
-            oob = np.repeat(np.nan, self._mask.shape[0])
-            np.put(oob, self._idx, self._oob)
-            oob = np.abs(oob)
-            oob = np.power(oob, self._oob_power)
-            return oob
+            mask = self._row_mask
+            error = np.repeat(np.nan, mask.shape[0])
+            idx = np.where(mask)[0]
+            np.put(error, idx, self._error_score)
+            return error.reshape((1,-1))
 
     @property
     def oob(self):
         if self._oob is None:
             return None
         else:
-            mask = np.logical_not(self._mask)
+            mask = np.logical_not(self._row_mask)
             oob = np.repeat(np.nan, mask.shape[0])
             idx = np.where(mask)[0]
             np.put(oob, idx, self._oob_score)
@@ -584,29 +589,34 @@ class Individual(CladeBase):
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None, replace=True):
         n = y.shape[0]
-        # TODO: split into train and test and bootstrap
-        self._idx = np.random.choice(
-            np.arange(n),
-            int(np.ceil(n * self.train_fraction)),
-            replace=replace
-        )
-        mask = np.repeat(False, n)
-        np.put(mask, np.unique(self._idx), True)
-        self._mask = mask  # mask for rows, not cols
-        # TODO: apply genes to X
+        idx_train, idx_test = train_test_split(
+            np.arange(y.shape[0]),
+            train_size=self.train_fraction,
+            shuffle=True
+            )
+        self._idx_train = idx_train
+        self._idx_test = idx_test
+        row_mask = np.repeat(False, n)
+        np.put(row_mask, np.unique(idx_train), True)
+        self._row_mask = row_mask  # mask for rows, not cols
         self._X = X
         self._y = y
-        # TODO: apply genes to model
         self._model.set_params(**self.phenotype["hyps"])
+        # TODO: implement bootstrap of self._row_mask before fitting
         self._model.fit(
-            self._X[self._mask,:][:,self.phenotype["mask"]],
-            self._y[self._mask],
+            self._X[self._row_mask,:][:,self.phenotype["mask"]],
+            self._y[self._row_mask],
             sample_weight,
             check_input,
             X_idx_sorted
         )
-        self._oob_score = self.predict_proba(self._X[np.logical_not(self._mask),:])[:,1]
-        self._oob_truth = self._y[np.logical_not(self._mask)]
+
+        self._error_score = self.predict_proba(self._X[self._row_mask,:])[:,1]
+        self._error_truth = self._y[self._row_mask]
+        self._error = self._error_score - self._error_truth
+
+        self._oob_score = self.predict_proba(self._X[np.logical_not(self._row_mask),:])[:,1]
+        self._oob_truth = self._y[np.logical_not(self._row_mask)]
         self._oob = self._oob_score - self._oob_truth
 
     def predict(self, X, check_input=True):
