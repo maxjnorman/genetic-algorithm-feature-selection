@@ -8,10 +8,37 @@ if __name__ == '__main__':
         from os import path
         sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
         from modules.clade import Clade, Individual
+        # from modules.functions import express_factory
     else:
         from ..modules.clade import Clade, Individual
+        # from ..modules.functions import express_factory
 
 logging.basicConfig(level=logging.DEBUG)
+
+# express_meta = express_factory(
+#     params = {
+#         "mutation_rate": np.arange(2., 34., 1.) / 34.
+#     },
+#     labels = ("mutation_rate",),
+#     cuts = (5,)
+# )
+# express_params = express_factory(
+#     params = {
+#         "criterion": ["gini", "entropy"],
+#         "max_depth": np.arange(1, 65)
+#     },
+#     labels = ("criterion", "max_depth"),
+#     cuts = (1,6)
+# )
+# def express(genes):
+#     meta, genes = express_meta(genes)
+#     hyps, genes = express_params(genes)
+#     phenotype = {
+#         "meta": meta,
+#         "hyps": hyps,
+#         "mask": genes.astype(bool)
+#     }
+#     return phenotype
 
 
 class TestCladeStructureMethods (unittest.TestCase):
@@ -20,20 +47,31 @@ class TestCladeStructureMethods (unittest.TestCase):
         """
         Test that Clade class clade method returns all individuals
         """
-        clade = Clade(initial_descendants=[
-            Individual(y=0),
+        clade = Clade(
+            initial_descendants=[
+                Individual(y=0, model=None, genes=None,
+                           expression_function=None),
+                Clade(
+                    initial_descendants=[
+                        Individual(y=1, model=None, genes=None,
+                                   expression_function=None),
+                        Individual(y=2, model=None, genes=None,
+                                   expression_function=None)
+                        ]
+                    ),
             Clade(initial_descendants=[
-                Individual(y=1),
-                Individual(y=2)
-            ]),
-            Clade(initial_descendants=[
-                Individual(y=3),
+                Individual(y=3, model=None, genes=None,
+                           expression_function=None),
                 Clade(initial_descendants=[
-                    Individual(y=4),
+                    Individual(y=4, model=None, genes=None,
+                               expression_function=None),
                     Clade(initial_descendants=[
-                        Individual(y=5),
-                        Individual(y=6),
-                        Individual(y=7)
+                        Individual(y=5, model=None, genes=None,
+                                   expression_function=None),
+                        Individual(y=6, model=None, genes=None,
+                                   expression_function=None),
+                        Individual(y=7, model=None, genes=None,
+                                   expression_function=None)
                     ])
                 ])
             ])
@@ -44,7 +82,7 @@ class TestCladeStructureMethods (unittest.TestCase):
     def test_collapse11(self):
         clade = Clade(initial_descendants=[
             Clade(initial_descendants=[
-                Individual(y="A")
+                Individual(y="A", model=None, genes=None, expression_function=None)
             ])
         ])
         clade.collapse()
@@ -54,7 +92,7 @@ class TestCladeStructureMethods (unittest.TestCase):
         clade = Clade(initial_descendants=[
             Clade(initial_descendants=[
                 Clade(initial_descendants=[
-                    Individual(y="A")
+                    Individual(y="A", model=None, genes=None, expression_function=None)
                 ])
             ])
         ])
@@ -66,7 +104,7 @@ class TestCladeStructureMethods (unittest.TestCase):
             Clade(initial_descendants=[
                 Clade(initial_descendants=[
                     Clade(initial_descendants=[
-                        Individual(y="A")
+                        Individual(y="A", model=None, genes=None, expression_function=None)
                     ])
                 ])
             ])
@@ -80,8 +118,8 @@ class TestCladeStructureMethods (unittest.TestCase):
                 Clade(y="C", initial_descendants=[
                     Clade(
                         initial_descendants=[
-                            Individual(y="A"),
-                            Individual(y="B")
+                            Individual(y="A", model=None, genes=None, expression_function=None),
+                            Individual(y="B", model=None, genes=None, expression_function=None)
                         ]
                     )
                 ])
@@ -94,9 +132,9 @@ class TestCladeStructureMethods (unittest.TestCase):
 
     def test_collapse121(self):
         clade = Clade(initial_descendants=[
-            Individual(y="A"),
+            Individual(y="A", model=None, genes=None, expression_function=None),
             Clade(initial_descendants=[
-                Individual(y="B")
+                Individual(y="B", model=None, genes=None, expression_function=None)
             ])
         ])
         clade.collapse()
@@ -105,9 +143,9 @@ class TestCladeStructureMethods (unittest.TestCase):
 
     def test_branch13_descs(self):
         clade = Clade(y="A", initial_descendants=[
-            Individual(y=1),
-            Individual(y=2),
-            Individual(y=3)
+            Individual(y=1, model=None, genes=None, expression_function=None),
+            Individual(y=2, model=None, genes=None, expression_function=None),
+            Individual(y=3, model=None, genes=None, expression_function=None)
             ])
         clade.branch()
         check = list([d.y for d in clade.descs])
@@ -115,9 +153,9 @@ class TestCladeStructureMethods (unittest.TestCase):
 
     def test_branch13_branch(self):
         clade = Clade(y="A", initial_descendants=[
-            Individual(y=1),
-            Individual(y=2),
-            Individual(y=3)
+            Individual(y=1, model=None, genes=None, expression_function=None),
+            Individual(y=2, model=None, genes=None, expression_function=None),
+            Individual(y=3, model=None, genes=None, expression_function=None)
             ])
         clade.branch()
         check = np.array([d.y for d in clade.clade])

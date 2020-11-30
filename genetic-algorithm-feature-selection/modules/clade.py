@@ -521,7 +521,6 @@ class Individual(CladeBase):
     @train_fraction.setter
     def train_fraction(self, train_fraction):
         assert(isinstance(train_fraction, float))
-        # assert(train_fraction <= 1.)
         assert(train_fraction > 0.)
         self._train_fraction = train_fraction
 
@@ -532,7 +531,7 @@ class Individual(CladeBase):
     @len_max.setter
     def len_max(self, len_max):
         assert(isinstance(len_max, int))
-        assert(len_max == 0)
+        assert(len_max >= 0)
         self._len_max = len_max
 
     @property

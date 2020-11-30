@@ -11,11 +11,13 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 dat = pd.read_csv(
-    "/home/max/projects/toy/ga-feat-selection/data/splice/Source/splice.data",
-    header=None
+    # "/home/max/projects/toy/ga-feat-selection/data/splice/Source/splice.data",
+    "data/diabetes.csv",
+    header=0
 )
-y = dat[0].str.match("^EI$").astype(int).values
-X = dat[2].str.strip().str.split('', expand=True).values
+
+y = dat['class'].str.match("^Positive$").astype(int).values
+X = dat.drop('class', axis=1).values
 X = OneHotEncoder().fit_transform(X)
 
 max_daughters = 8
