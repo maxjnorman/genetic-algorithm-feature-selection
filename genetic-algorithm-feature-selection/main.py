@@ -11,33 +11,38 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 
-dat = pd.read_csv(
-    # "/home/max/projects/toy/ga-feat-selection/data/splice/Source/splice.data",
-    "data/diabetes.csv",
-    header=0
-)
+# dat = pd.read_csv(
+#     # "/home/max/projects/toy/ga-feat-selection/data/splice/Source/splice.data",
+#     "data/diabetes.csv",
+#     header=0
+# )
+# rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
+# rands = pd.DataFrame(rands)
+# dat = pd.concat((dat, rands), axis=1)
+# rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
+# rands = pd.DataFrame(rands)
+# dat = pd.concat((dat, rands), axis=1)
+# train, test = train_test_split(dat, test_size=0.25)
+# encoder = OneHotEncoder()
+# encoder.fit(dat.drop('class', axis=1).values)
+# y = train['class'].str.match("^Positive$").astype(int).values
+# X = train.drop('class', axis=1).values
+# X = encoder.transform(X)
+# y_test = test['class'].str.match("^Positive$").astype(int).values
+# X_test = test.drop('class', axis=1).values
+# X_test = encoder.transform(X_test)
 
-rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
-rands = pd.DataFrame(rands)
-dat = pd.concat((dat, rands), axis=1)
+dat = pd.read_csv("/Users/maxjnorman/Desktop/baseline.csv")
+tst = pd.read_csv("/Users/maxjnorman/Desktop/testset.csv")
+cols = dat.columns
+cols = cols[cols.str.startswith("flag")] 
 
-rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
-rands = pd.DataFrame(rands)
-dat = pd.concat((dat, rands), axis=1)
+X = dat[cols[cols.str.startswith("flag") | cols.str.startswith("value")]].values
+X_test = tst[cols[cols.str.startswith("flag") | cols.str.startswith("value")]].values
+y = dat["ttr_out_ros_good_control"].values
+y_test = tst["ttr_out_ros_good_control"].values
 
-train, test = train_test_split(dat, test_size=0.25)
-encoder = OneHotEncoder()
-encoder.fit(dat.drop('class', axis=1).values)
-
-y = train['class'].str.match("^Positive$").astype(int).values
-X = train.drop('class', axis=1).values
-X = encoder.transform(X)
-
-y_test = test['class'].str.match("^Positive$").astype(int).values
-X_test = test.drop('class', axis=1).values
-X_test = encoder.transform(X_test)
-
-max_daughters = 16
+max_daughters = 32
 tree = DecisionTreeClassifier
 express_meta = express_factory(
     params = {
@@ -114,7 +119,7 @@ root = Clade(
         Individual(model=tree(), genes=np.random.random(5 + 1 + 5 + X.shape[1]).round().astype(int), expression_function=express)],
         n_max=128,
         max_daughters=max_daughters,
-        train_fraction=.25
+        train_fraction=.75
     )
 root.fit(X,y)
 root.branch()
@@ -127,12 +132,12 @@ with warnings.catch_warnings():
     while counter < 96:
         counter += 1
         # root.fit(X,y)
-        while root._size_descs() <= (32 + counter):
+        while root._size_descs() <= (128 + counter):
             root.fit(X,y)
             root.breed(X, y)
             root.branch()
         root.fit(X,y)
-        while root._size_descs() > (32 + counter):
+        while root._size_descs() > (96 + counter):
             # root.fit(X,y)
             root.kill()
             root.simplify()
