@@ -7,7 +7,7 @@ from .functions import chain
 class CladeBase:
 
     def __init__(self, X=None, y=None, model=None, initial_descendants=[],
-                 n_max=8, n_decay_factor=.5, max_daughters=2,
+                 n_max=16, n_decay_factor=.5, max_daughters=2,
                  train_fraction=.666667, oob_power=2., **kwargs):
         self._descs = initial_descendants
         self.gen = 0
@@ -129,7 +129,8 @@ class CladeBase:
         return teams
 
     def _champ(self, loser=False):
-        stable = list(self.descs)
+        # stable = list(self.descs)
+        stable = list(self.clade)
         if len(stable) > 0:
             while len(stable) > 1:
                 # arena = None # TODO:
@@ -219,11 +220,11 @@ class Clade(CladeBase):
         for desc in self.descs:
             desc.branch()
 
-    def _breed_descs(self):
+    def _breed_descs(self, X, y, refit=False):
         for desc in self.descs:
-            desc.breed()
+            desc.breed(X, y, refit=refit)
 
-    def breed(self):
+    def breed(self, X, y, refit=False):
         parent = self.highlander()
         genes = parent.genotype
         pool = self.genotype
@@ -232,8 +233,10 @@ class Clade(CladeBase):
             np.random.choice(pool.shape[0], pool.shape[1])
             ].reshape(1,-1)
         alpha = np.random.random()
-        alpha = np.max((alpha, .1))
-        alpha = np.min((alpha, .9))
+        # alpha = np.max((alpha, .1))
+        # alpha = np.min((alpha, .9))
+        alpha = .25 * alpha
+        alpha = .5 + alpha
         mask = np.random.random((1, genes.shape[1])) < alpha
         print(f"alpha: {alpha}")
         print(f"genes.shape: {genes.shape}")
@@ -242,11 +245,17 @@ class Clade(CladeBase):
         np.putmask(genes, mask, values)
         offspring = Individual(genes=genes.reshape((-1,)), model=parent._model.__class__(),
                                expression_function=parent._expression_function,
-                               X=None, y=None,
+                               X=X, y=y,
                                train_fraction=parent._train_fraction,
-                               oob_power=parent._oob_power)
+                               oob_power=parent._oob_power
+                               )
+        offspring.mutate()
+        offspring.fit(X, y)
         self._descs = np.array(list(self.descs) + [offspring])
-        self._breed_descs()
+        if refit is True:
+            pass
+        self._breed_descs(X, y)
+
 
     def fit(self, X, y, sample_weight=None, check_input=True, X_idx_sorted=None, replace=True):
         self._X = X
@@ -493,6 +502,13 @@ class Individual(CladeBase):
         self._genes = genes
         self._expression_function = expression_function
 
+    def mutate(self):
+        genes = self._genes
+        a = np.random.random()
+        i = np.floor(a * np.prod(genes.shape)).astype(int)
+        genes[i] = (1 - genes[i]).astype(int)
+        self._genes = genes
+
     @property
     def fertile(self):
         fertile = True
@@ -515,7 +531,7 @@ class Individual(CladeBase):
         assert(len(genes.shape) == 1)
         self._genes = genes
 
-    def breed(self):
+    def breed(self, X=None, y=None, refit=None):
         pass
 
     @property
@@ -610,11 +626,9 @@ class Individual(CladeBase):
             check_input,
             X_idx_sorted
         )
-
         self._error_score = self.predict_proba(self._X[self._row_mask,:])[:,1]
         self._error_truth = self._y[self._row_mask]
         self._error = self._error_score - self._error_truth
-
         self._oob_score = self.predict_proba(self._X[np.logical_not(self._row_mask),:])[:,1]
         self._oob_truth = self._y[np.logical_not(self._row_mask)]
         self._oob = self._oob_score - self._oob_truth

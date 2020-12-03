@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import warnings
 
 from modules.functions import chain, express_factory
 from modules.clade import Clade, Individual
@@ -7,7 +8,7 @@ from modules.clade import Clade, Individual
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import OneHotEncoder
-
+from sklearn.model_selection import train_test_split
 
 
 dat = pd.read_csv(
@@ -16,11 +17,27 @@ dat = pd.read_csv(
     header=0
 )
 
-y = dat['class'].str.match("^Positive$").astype(int).values
-X = dat.drop('class', axis=1).values
-X = OneHotEncoder().fit_transform(X)
+rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
+rands = pd.DataFrame(rands)
+dat = pd.concat((dat, rands), axis=1)
 
-max_daughters = 8
+rands = np.round(np.random.random(dat.shape) * .2, 1) * 5.
+rands = pd.DataFrame(rands)
+dat = pd.concat((dat, rands), axis=1)
+
+train, test = train_test_split(dat, test_size=0.25)
+encoder = OneHotEncoder()
+encoder.fit(dat.drop('class', axis=1).values)
+
+y = train['class'].str.match("^Positive$").astype(int).values
+X = train.drop('class', axis=1).values
+X = encoder.transform(X)
+
+y_test = test['class'].str.match("^Positive$").astype(int).values
+X_test = test.drop('class', axis=1).values
+X_test = encoder.transform(X_test)
+
+max_daughters = 16
 tree = DecisionTreeClassifier
 express_meta = express_factory(
     params = {
@@ -97,6 +114,29 @@ root = Clade(
         Individual(model=tree(), genes=np.random.random(5 + 1 + 5 + X.shape[1]).round().astype(int), expression_function=express)],
         n_max=128,
         max_daughters=max_daughters,
-        train_fraction=.75
+        train_fraction=.25
     )
 root.fit(X,y)
+root.branch()
+root.simplify()
+root.collapse()
+counter = 0
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    while counter < 96:
+        counter += 1
+        # root.fit(X,y)
+        while root._size_descs() <= (32 + counter):
+            root.fit(X,y)
+            root.breed(X, y)
+            root.branch()
+        root.fit(X,y)
+        while root._size_descs() > (32 + counter):
+            # root.fit(X,y)
+            root.kill()
+            root.simplify()
+            root.collapse()
+            a = np.nanmean(np.nanmean(root.oob, axis=0)).round(3)
+            b = np.round(roc_auc_score(y_test, np.nanmean(root.predict_proba(X_test)[:,:,1], axis=0)), 3)
+            print(f"oob:{a} auc:{b}")
